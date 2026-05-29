@@ -21,11 +21,29 @@ const Sidebar: React.FC<Props> = ({ open }) => {
       ),
     },
     {
-      name: "Traffic",
-      href: "/traffic",
+      name: "Normal Traffic",
+      href: "/traffic/normal",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor">
           <path strokeWidth={1.8} d="M3 17l6-6 4 4 8-8" />
+        </svg>
+      ),
+    },
+    {
+      name: "Suspicious Traffic",
+      href: "/traffic/suspicious",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor">
+          <path strokeWidth={1.8} d="M12 3v18M3 12h18" />
+        </svg>
+      ),
+    },
+    {
+      name: "Attack Traffic",
+      href: "/traffic/attack",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor">
+          <path strokeWidth={1.8} d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z" />
         </svg>
       ),
     },
@@ -95,10 +113,7 @@ const Sidebar: React.FC<Props> = ({ open }) => {
           className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-600/20 transition"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor">
-            <path
-              strokeWidth={1.8}
-              d="M17 16l4-4m0 0l-4-4m4 4H7"
-            />
+            <path strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7" />
           </svg>
 
           {open && <span>Logout</span>}
