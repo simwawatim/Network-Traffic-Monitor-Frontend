@@ -1,347 +1,338 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, JSX } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import Layout from "../../../Layout";
+import { useRouter } from "next/navigation";
 
-// ---------- Types ----------
-interface DetailLog {
+interface MissingDataLog {
   uuid: string;
   timestamp: string;
   srcIp: string;
   dstIp: string;
   protocol: string;
   packetSize: number | null;
-  status?: "normal" | "suspicious" | "ddos";
-  attackType?: "ddos" | "malicious" | "scanning" | "exploit";
-  severity?: "high" | "critical";
-  missingFields?: string[];
-  reason?: string;
+  missingFields: string[];
+  reason: string;
 }
 
-// Mock data with sufficient variety to demonstrate hierarchy
-const MOCK_LOGS: DetailLog[] = [
-  {
-    uuid: "log-001",
-    timestamp: "2025-02-20T08:23:10Z",
-    srcIp: "192.168.1.100",
-    dstIp: "10.0.0.5",
-    protocol: "TCP",
-    packetSize: 1420,
-    status: "normal",
-  },
-  {
-    uuid: "log-002",
-    timestamp: "2025-02-20T08:24:15Z",
-    srcIp: "192.168.1.100",
-    dstIp: "10.0.0.5",
-    protocol: "TCP",
-    packetSize: 840,
-    status: "normal",
-  },
-  {
-    uuid: "log-003",
-    timestamp: "2025-02-20T08:25:42Z",
-    srcIp: "192.168.1.100",
-    dstIp: "172.31.0.22",
-    protocol: "UDP",
-    packetSize: 512,
-    status: "suspicious",
-    attackType: "scanning",
-    severity: "high",
-    reason: "Multiple ports probed",
-  },
-  {
-    uuid: "log-004",
-    timestamp: "2025-02-20T09:05:03Z",
-    srcIp: "10.10.10.10",
-    dstIp: "192.168.1.100",
-    protocol: "ICMP",
-    packetSize: 98,
-    status: "ddos",
-    attackType: "ddos",
-    severity: "critical",
-    missingFields: ["dstIp"],
-    reason: "ICMP flood detected",
-  },
-  {
-    uuid: "log-005",
-    timestamp: "2025-02-20T09:07:21Z",
-    srcIp: "10.10.10.10",
-    dstIp: "192.168.1.100",
-    protocol: "ICMP",
-    packetSize: 102,
-    status: "ddos",
-    attackType: "ddos",
-    severity: "critical",
-    reason: "High rate of ICMP echo requests",
-  },
-  {
-    uuid: "log-006",
-    timestamp: "2025-02-20T10:12:44Z",
-    srcIp: "192.168.1.200",
-    dstIp: "8.8.8.8",
-    protocol: "DNS",
-    packetSize: 78,
-    status: "normal",
-  },
-  {
-    uuid: "log-007",
-    timestamp: "2025-02-20T11:30:11Z",
-    srcIp: "192.168.1.200",
-    dstIp: "8.8.8.8",
-    protocol: "DNS",
-    packetSize: 82,
-    status: "suspicious",
-    attackType: "exploit",
-    severity: "high",
-    missingFields: ["packetSize"],
-    reason: "Malformed DNS query",
-  },
-];
-
-interface TableRowData {
-  id: string;
-  name: string;
-  type: "source" | "destination" | "protocol" | "log";
-  level: number;
-  logData?: DetailLog;
-  children?: TableRowData[];
-}
-
-// The ExpandableRow component has been removed in favor of the renderRows function below,
-// which provides cleaner recursive rendering with proper state management.
-
-// ---------- Main Page Component ----------
-const InsightDetailsPage = () => {
-  const { uuid } = useParams<{ uuid: string }>();
-  const router = useRouter();
-  const [log, setLog] = useState<DetailLog | null>(null);
+const MissingDataPageComp = () => {
+  const [logs, setLogs] = useState<MissingDataLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [selectedLogUuid, setSelectedLogUuid] = useState<string>(uuid);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [protocolFilter, setProtocolFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+   const router = useRouter();
 
-  // Load initial log based on URL uuid
+  // Mock missing data logs
   useEffect(() => {
-    if (!uuid) return;
-    const found = MOCK_LOGS.find((l) => l.uuid === uuid);
-    if (found) {
-      setLog(found);
-      setError(false);
-    } else {
-      setError(true);
-    }
-    setLoading(false);
-  }, [uuid]);
-
-  const handleSelectLog = useCallback(
-    (newUuid: string) => {
-      if (newUuid === selectedLogUuid) return;
-      setSelectedLogUuid(newUuid);
-      const foundLog = MOCK_LOGS.find((l) => l.uuid === newUuid);
-      if (foundLog) {
-        setLog(foundLog);
-        router.push(`/insight/${newUuid}`, { scroll: false });
-      }
-    },
-    [router, selectedLogUuid]
-  );
-
-  const toggleRow = (id: string) => {
-    setExpandedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  // Build hierarchy: source -> destination -> protocol -> log
-  const tableRows = useMemo(() => {
-    const sourceMap = new Map<string, TableRowData>();
-    MOCK_LOGS.forEach((logEntry) => {
-      const src = logEntry.srcIp || "unknown";
-      const dst = logEntry.dstIp || "unknown";
-      const proto = logEntry.protocol || "unknown";
-
-      if (!sourceMap.has(src)) {
-        sourceMap.set(src, {
-          id: `src-${src}`,
-          name: src,
-          type: "source",
-          level: 0,
-          children: [],
-        });
-      }
-      const sourceNode = sourceMap.get(src)!;
-
-      let destNode = sourceNode.children?.find(
-        (c) => c.type === "destination" && c.name === dst
-      );
-      if (!destNode) {
-        destNode = {
-          id: `src-${src}-dst-${dst}`,
-          name: dst,
-          type: "destination",
-          level: 1,
-          children: [],
-        };
-        sourceNode.children!.push(destNode);
-      }
-
-      let protoNode = destNode.children?.find(
-        (c) => c.type === "protocol" && c.name === proto
-      );
-      if (!protoNode) {
-        protoNode = {
-          id: `src-${src}-dst-${dst}-proto-${proto}`,
-          name: proto,
-          type: "protocol",
-          level: 2,
-          children: [],
-        };
-        destNode.children!.push(protoNode);
-      }
-
-      protoNode.children!.push({
-        id: `log-${logEntry.uuid}`,
-        name: logEntry.uuid.slice(0, 8),
-        type: "log",
-        level: 3,
-        logData: logEntry,
-      });
-    });
-    return Array.from(sourceMap.values());
+    const fetchMissingDataLogs = async () => {
+      const mockLogs: MissingDataLog[] = [
+        { uuid: "880e8400-e29b-41d4-a716-446655443000", timestamp: "2025-02-18 16:12:34", srcIp: "192.168.1.10", dstIp: "", protocol: "TCP", packetSize: null, missingFields: ["dstIp", "packetSize"], reason: "Incomplete packet capture" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443001", timestamp: "2025-02-18 16:15:22", srcIp: "", dstIp: "10.0.0.5", protocol: "", packetSize: 512, missingFields: ["srcIp", "protocol"], reason: "Corrupted header" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443002", timestamp: "2025-02-18 16:18:45", srcIp: "203.0.113.7", dstIp: "10.0.0.9", protocol: "UDP", packetSize: null, missingFields: ["packetSize"], reason: "Payload missing" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443003", timestamp: "2025-02-18 16:22:10", srcIp: "", dstIp: "", protocol: "ICMP", packetSize: 84, missingFields: ["srcIp", "dstIp"], reason: "IP header malformed" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443004", timestamp: "2025-02-18 16:27:33", srcIp: "192.168.1.55", dstIp: "10.0.0.2", protocol: "", packetSize: 1460, missingFields: ["protocol"], reason: "Unknown protocol field" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443005", timestamp: "2025-02-18 16:31:59", srcIp: "172.16.0.4", dstIp: "", protocol: "TCP", packetSize: 1500, missingFields: ["dstIp"], reason: "Destination unreachable" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443006", timestamp: "2025-02-18 16:38:17", srcIp: "", dstIp: "10.0.0.15", protocol: "", packetSize: null, missingFields: ["srcIp", "protocol", "packetSize"], reason: "Severe corruption" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443007", timestamp: "2025-02-18 16:42:44", srcIp: "198.51.100.22", dstIp: "10.0.0.8", protocol: "UDP", packetSize: null, missingFields: ["packetSize"], reason: "Truncated log" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443008", timestamp: "2025-02-18 16:47:11", srcIp: "", dstIp: "", protocol: "", packetSize: 1024, missingFields: ["srcIp", "dstIp", "protocol"], reason: "All metadata missing" },
+        { uuid: "880e8400-e29b-41d4-a716-446655443009", timestamp: "2025-02-18 16:51:28", srcIp: "192.168.1.99", dstIp: "10.0.0.22", protocol: "TCP", packetSize: null, missingFields: ["packetSize"], reason: "Size field omitted" },
+        { uuid: "880e8400-e29b-41d4-a716-44665544300a", timestamp: "2025-02-18 16:55:03", srcIp: "", dstIp: "10.0.0.1", protocol: "ICMP", packetSize: 64, missingFields: ["srcIp"], reason: "Source IP anonymized" },
+        { uuid: "880e8400-e29b-41d4-a716-44665544300b", timestamp: "2025-02-18 16:59:46", srcIp: "203.0.113.5", dstIp: "", protocol: "UDP", packetSize: 256, missingFields: ["dstIp"], reason: "Destination dropped" },
+      ];
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setLogs(mockLogs);
+      setLoading(false);
+    };
+    fetchMissingDataLogs();
   }, []);
 
-  // Recursive render function using expandedRows state
-  const renderRows = useCallback(
-    (rows: TableRowData[]): JSX.Element[] => {
-      return rows.flatMap((row) => {
-        const isOpen = expandedRows.has(row.id);
-        const hasChildren = row.children && row.children.length > 0;
-        const isLogRow = row.type === "log";
-        const isSelected = isLogRow && row.logData?.uuid === selectedLogUuid;
-        const indentPadding = row.level * 1.5; // rem
+  // Filter logic (search includes UUID, IPs, protocol, missing fields, reason)
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        searchTerm === "" ||
+        log.uuid.toLowerCase().includes(searchLower) ||
+        log.timestamp.includes(searchTerm) ||
+        log.srcIp.toLowerCase().includes(searchLower) ||
+        log.dstIp.toLowerCase().includes(searchLower) ||
+        log.protocol.toLowerCase().includes(searchLower) ||
+        (log.packetSize && log.packetSize.toString().includes(searchTerm)) ||
+        log.missingFields.some(field => field.toLowerCase().includes(searchLower)) ||
+        log.reason.toLowerCase().includes(searchLower);
+      const matchesProtocol = protocolFilter === "all" || log.protocol === protocolFilter;
+      return matchesSearch && matchesProtocol;
+    });
+  }, [logs, searchTerm, protocolFilter]);
 
-        const mainRow = (
-          <tr
-            key={row.id}
-            className={`border-b border-gray-100 hover:bg-gray-50 transition ${
-              isSelected ? "bg-emerald-50" : ""
-            }`}
-            onClick={() => {
-              if (isLogRow && row.logData) {
-                handleSelectLog(row.logData.uuid);
-              }
-            }}
-          >
-            {/* Node column with expand/collapse */}
-            <td className="py-2.5" style={{ paddingLeft: `${indentPadding}rem` }}>
-              <div className="flex items-center gap-1">
-                {hasChildren && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleRow(row.id);
-                    }}
-                    className="p-1 hover:bg-gray-200 rounded"
-                  >
-                    {isOpen ? (
-                      <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    )}
-                  </button>
-                )}
-                {!hasChildren && <span className="w-6"></span>}
-                <span
-                  className={`text-sm ${
-                    isLogRow
-                      ? "font-mono text-emerald-700 cursor-pointer hover:underline"
-                      : "font-medium text-gray-800"
-                  }`}
-                >
-                  {row.name}
-                </span>
-                {isLogRow && <span className="ml-2 text-xs text-gray-400">(log)</span>}
-              </div>
-            </td>
-            <td className="py-2.5 text-sm text-gray-600">
-              {isLogRow ? row.logData?.timestamp || "-" : "-"}
-            </td>
-            <td className="py-2.5 text-sm text-gray-600">
-              {isLogRow ? row.logData?.protocol || "-" : "-"}
-            </td>
-            <td className="py-2.5 text-sm text-gray-600">
-              {isLogRow
-                ? row.logData?.packetSize
-                  ? `${row.logData.packetSize} bytes`
-                  : "-"
-                : "-"}
-            </td>
-          </tr>
-        );
+  // Pagination
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(start, start + itemsPerPage);
+  }, [filteredLogs, currentPage, itemsPerPage]);
 
-        // If row has children and is expanded, render children recursively
-        if (isOpen && hasChildren) {
-          return [mainRow, ...renderRows(row.children!)];
-        }
-        return [mainRow];
-      });
-    },
-    [expandedRows, selectedLogUuid, handleSelectLog, toggleRow]
-  );
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, protocolFilter, itemsPerPage]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-96">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
-      </div>
-    );
-  }
+  const clearFilters = () => {
+    setSearchTerm("");
+    setProtocolFilter("all");
+  };
 
-  if (error || !log) {
-    return <div className="text-center py-16 text-gray-500">Log not found</div>;
-  }
+const handleViewLog = (log: MissingDataLog) => {
+  router.push(`/insight-details/${log.uuid}`);
+};
 
   return (
-    <div className="w-full bg-gray-50 min-h-screen">
-      <div className="w-full px-4 sm:px-6 py-6">
-        {/* Full-width expandable tree table - only section */}
-        <div className="w-full bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-700">
-            Traffic Hierarchy Tree
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Node
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Timestamp
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Protocol
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Packet Size
-                  </th>
-                </tr>
-              </thead>
-              <tbody>{renderRows(tableRows)}</tbody>
-            </table>
+    <Layout>
+      <div className="w-full bg-gray-50 min-h-screen">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-5">
+          <h1 className="text-2xl font-bold text-gray-900">Missing Data Logs</h1>
+          <p className="text-sm text-gray-600 mt-1">Review incomplete or corrupted traffic logs that require attention</p>
+        </div>
+
+        {/* Filters section with spacing above and below */}
+        <div className="px-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 my-4">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+              {/* Search input */}
+              <div className="flex-1 w-full">
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search by UUID, IP, protocol, missing fields, reason..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Protocol filter */}
+              <div className="w-full md:w-48">
+                <select
+                  value={protocolFilter}
+                  onChange={(e) => setProtocolFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="all">All Protocols</option>
+                  <option value="TCP">TCP</option>
+                  <option value="UDP">UDP</option>
+                  <option value="ICMP">ICMP</option>
+                  <option value="">Missing Protocol</option>
+                </select>
+              </div>
+
+              {/* Clear filters button */}
+              {(searchTerm || protocolFilter !== "all") && (
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                >
+                  Clear filters
+                </button>
+              )}
+
+              {/* Items per page */}
+              <div className="flex items-center gap-3 ml-auto">
+                <span className="text-sm text-gray-600">Show</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-gray-900 bg-white focus:ring-2 focus:ring-green-500"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-gray-600">entries</span>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Table area */}
+        <div className="px-6 py-2">
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Record ID (UUID)</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Timestamp</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Source IP</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Destination IP</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Protocol</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Packet Size (bytes)</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Missing Fields</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Reason</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedLogs.map((log) => (
+                      <tr key={log.uuid} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-3 text-sm text-gray-900 font-mono whitespace-nowrap">{log.uuid}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 font-mono whitespace-nowrap">{log.timestamp}</td>
+                        <td className="px-6 py-3 text-sm text-gray-700 font-mono">{log.srcIp || <span className="text-red-500 italic">missing</span>}</td>
+                        <td className="px-6 py-3 text-sm text-gray-700 font-mono">{log.dstIp || <span className="text-red-500 italic">missing</span>}</td>
+                        <td className="px-6 py-3">
+                          {log.protocol ? (
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              log.protocol === "TCP" ? "bg-blue-100 text-blue-800" :
+                              log.protocol === "UDP" ? "bg-purple-100 text-purple-800" :
+                              "bg-gray-100 text-gray-800"
+                            }`}>
+                              {log.protocol}
+                            </span>
+                          ) : (
+                            <span className="text-red-500 italic text-xs">missing</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-700">
+                          {log.packetSize !== null ? log.packetSize : <span className="text-red-500 italic">missing</span>}
+                        </td>
+                        <td className="px-6 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {log.missingFields.map((field) => (
+                              <span key={field} className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+                                {field}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-600 max-w-xs truncate" title={log.reason}>
+                          {log.reason}
+                        </td>
+                        <td className="px-6 py-3">
+                          <button
+                            onClick={() => handleViewLog(log)}
+                            className="text-gray-500 hover:text-green-600 transition-colors p-1 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            aria-label={`View details for missing data log ${log.uuid}`}
+                            title="View details"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Empty state */}
+              {paginatedLogs.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  No missing data logs match your filters.
+                </div>
+              )}
+
+              {/* Pagination */}
+              {filteredLogs.length > 0 && (
+                <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50">
+                  <div className="text-sm text-gray-600">
+                    Showing <span className="font-medium text-gray-900">{paginatedLogs.length}</span> of{" "}
+                    <span className="font-medium text-gray-900">{filteredLogs.length}</span> logs
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition"
+                    >
+                      Previous
+                    </button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                          if (i === 4) pageNum = totalPages;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - (4 - i);
+                        } else {
+                          if (i === 0) pageNum = 1;
+                          else if (i === 1) pageNum = currentPage - 1;
+                          else if (i === 2) pageNum = currentPage;
+                          else if (i === 3) pageNum = currentPage + 1;
+                          else pageNum = totalPages;
+                        }
+                        if (pageNum === 2 && currentPage > 3 && i === 1) {
+                          return <span key="ellipsis1" className="px-2 text-gray-500">...</span>;
+                        }
+                        if (pageNum === totalPages - 1 && currentPage < totalPages - 2 && i === 3) {
+                          return <span key="ellipsis2" className="px-2 text-gray-500">...</span>;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-8 h-8 text-sm font-medium rounded-md transition ${
+                              currentPage === pageNum
+                                ? "bg-green-600 text-white"
+                                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 
-export default InsightDetailsPage;
+export default MissingDataPageComp;

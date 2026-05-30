@@ -188,7 +188,7 @@ const RegisterPage: React.FC = () => {
                 {/* Submit button */}
                 <button
                   type="submit"
-                  className="mt-4 w-full flex justify-center items-center gap-2 bg-gray-900 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2"
+                  className="mt-4 w-full flex justify-center items-center gap-2 bg-emerald-700 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2"
                 >
                   <span>Sign Up</span>
                   <svg
