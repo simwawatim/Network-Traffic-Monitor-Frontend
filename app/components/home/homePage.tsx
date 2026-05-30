@@ -1,311 +1,259 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Layout from "../Layout";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
   CartesianGrid,
-  Area,
-  AreaChart,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
 } from "recharts";
 
-// Extended traffic data for full week
-const trafficData = [
-  { name: "Mon", traffic: 4200 },
-  { name: "Tue", traffic: 5800 },
-  { name: "Wed", traffic: 7200 },
-  { name: "Thu", traffic: 8900 },
-  { name: "Fri", traffic: 10400 },
-  { name: "Sat", traffic: 6300 },
-  { name: "Sun", traffic: 4800 },
-];
+interface StatCard {
+  title: string;
+  value: number;
+  change: number;
+  icon: React.ReactNode;
+  color: string;
+  bgColor: string;
+}
 
-// Sample table data with more records
-const initialTableData = [
-  { id: 1, ip: "192.168.1.1", status: "Blocked", level: "High", time: "2 min ago" },
-  { id: 2, ip: "10.0.0.5", status: "Safe", level: "Low", time: "10 min ago" },
-  { id: 3, ip: "172.16.0.4", status: "Suspicious", level: "Medium", time: "25 min ago" },
-  { id: 4, ip: "203.0.113.8", status: "Blocked", level: "Critical", time: "1 hour ago" },
-  { id: 5, ip: "192.168.1.100", status: "Safe", level: "Low", time: "2 hours ago" },
-  { id: 6, ip: "10.10.10.2", status: "Investigating", level: "High", time: "3 hours ago" },
-  { id: 7, ip: "8.8.8.8", status: "Safe", level: "Low", time: "5 hours ago" },
-  { id: 8, ip: "192.168.2.45", status: "Blocked", level: "High", time: "yesterday" },
-  { id: 9, ip: "34.120.8.72", status: "Suspicious", level: "Medium", time: "yesterday" },
-  { id: 10, ip: "142.250.185.46", status: "Safe", level: "Low", time: "2 days ago" },
-];
+const DashboardPage = () => {
+  const [stats, setStats] = useState<StatCard[]>([
+    {
+      title: "Normal Traffic",
+      value: 0,
+      change: 0,
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeWidth={1.8} d="M3 17l6-6 4 4 8-8" />
+        </svg>
+      ),
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+    },
+    {
+      title: "Suspicious Traffic",
+      value: 0,
+      change: 0,
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-50",
+    },
+    {
+      title: "DDoS Attacks",
+      value: 0,
+      change: 0,
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeWidth={1.8} d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z" />
+        </svg>
+      ),
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+    },
+    {
+      title: "Missing Data",
+      value: 0,
+      change: 0,
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+  ]);
 
-// Status badge component
-const StatusBadge = ({ status }: { status: string }) => {
-  const statusStyles: Record<string, string> = {
-    Blocked: "bg-red-100 text-red-800 ring-1 ring-red-600/20",
-    Safe: "bg-green-100 text-green-800 ring-1 ring-green-600/20",
-    Suspicious: "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20",
-    Investigating: "bg-orange-100 text-orange-800 ring-1 ring-orange-600/20",
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyles[status] || "bg-gray-100 text-gray-800"}`}>
-      {status}
-    </span>
-  );
-};
+  const [loading, setLoading] = useState(true);
 
-// Level badge component
-const LevelBadge = ({ level }: { level: string }) => {
-  const levelStyles: Record<string, string> = {
-    High: "bg-red-100 text-red-800 ring-1 ring-red-600/20",
-    Medium: "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20",
-    Low: "bg-green-100 text-green-800 ring-1 ring-green-600/20",
-    Critical: "bg-purple-100 text-purple-800 ring-1 ring-purple-600/20",
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${levelStyles[level] || "bg-gray-100 text-gray-800"}`}>
-      {level}
-    </span>
-  );
-};
+  // Mock data for alert trends (Recent Alerts graph)
+  const alertTrendData = [
+    { time: "00:00", alerts: 2 },
+    { time: "04:00", alerts: 5 },
+    { time: "08:00", alerts: 12 },
+    { time: "12:00", alerts: 18 },
+    { time: "16:00", alerts: 25 },
+    { time: "20:00", alerts: 16 },
+    { time: "23:00", alerts: 8 },
+  ];
 
-// Custom tooltip for chart
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-        <p className="text-sm font-semibold text-gray-700">{label}</p>
-        <p className="text-sm text-indigo-600">
-          Traffic: {payload[0].value.toLocaleString()} packets
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
+  // Mock data for top attack sources (bar chart)
+  const topAttackSources = [
+    { ip: "203.0.113.5", attacks: 47 },
+    { ip: "198.51.100.7", attacks: 23 },
+    { ip: "192.0.2.44", attacks: 19 },
+    { ip: "185.130.5.253", attacks: 12 },
+  ];
 
-const HomePage = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Filter table data based on search term
-  const filteredTableData = useMemo(() => {
-    if (!searchTerm.trim()) return initialTableData;
-    return initialTableData.filter(
-      (row) =>
-        row.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        row.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        row.level.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm]);
+  useEffect(() => {
+    // Simulate API call to fetch real stats
+    const fetchStats = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setStats([
+        {
+          title: "Normal Traffic",
+          value: 1248,
+          change: 12.5,
+          icon: stats[0].icon,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+        },
+        {
+          title: "Suspicious Traffic",
+          value: 347,
+          change: -8.2,
+          icon: stats[1].icon,
+          color: "text-yellow-600",
+          bgColor: "bg-yellow-50",
+        },
+        {
+          title: "DDoS Attacks",
+          value: 89,
+          change: 23.1,
+          icon: stats[2].icon,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+        },
+        {
+          title: "Missing Data",
+          value: 156,
+          change: -4.7,
+          icon: stats[3].icon,
+          color: "text-orange-600",
+          bgColor: "bg-orange-50",
+        },
+      ]);
+      setLoading(false);
+    };
+    fetchStats();
+  }, []);
 
   return (
     <Layout>
-      <div className="min-h-screen bg-white">
-        <div className="max-w-7xl mx-auto space-y-8 p-6">
-          {/* Header Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Network Dashboard
-              </h1>
-              <p className="text-gray-500 mt-1">
-                Real-time security monitoring & analytics
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                Live Monitoring
-              </div>
-            </div>
-          </div>
+      <div className="w-full bg-gray-50 min-h-screen">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-5">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-600 mt-1">Real-time overview of network traffic and security events</p>
+        </div>
 
-          {/* Stats Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Traffic Card */}
-            <div className="group relative bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-gray-500 text-sm font-medium">Total Traffic</p>
-                  <div className="p-2 bg-indigo-50 rounded-xl">
-                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
+        {/* Cards Grid */}
+        <div className="px-6 py-8">
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            </div>
+          ) : (
+            <>
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {stats.map((stat, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow duration-200"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">{stat.title}</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value.toLocaleString()}</p>
+                        <div className="flex items-center gap-1 mt-2">
+                          {stat.change > 0 ? (
+                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                          <span className={`text-sm font-medium ${stat.change > 0 ? "text-green-600" : "text-red-600"}`}>
+                            {Math.abs(stat.change)}%
+                          </span>
+                          <span className="text-xs text-gray-500 ml-1">vs last week</span>
+                        </div>
+                      </div>
+                      <div className={`p-3 rounded-full ${stat.bgColor} ${stat.color}`}>
+                        {stat.icon}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Graphs Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Alerts - Line Chart */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Alerts Trend</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={alertTrendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                        labelStyle={{ color: "#374151" }}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="alerts"
+                        name="Alert Count"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="mt-3 text-xs text-gray-500 text-center">
+                    Last 24 hours (hourly aggregated)
                   </div>
                 </div>
-                <h3 className="text-3xl font-bold text-gray-900 mt-3">1.28M</h3>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-green-600 font-medium">↑ 12.5%</span>
-                  <span className="text-xs text-gray-400">vs last week</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Threats Card */}
-            <div className="group relative bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-gray-500 text-sm font-medium">Active Threats</p>
-                  <div className="p-2 bg-red-50 rounded-xl">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
+                {/* Top Attack Sources - Bar Chart */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Top Attack Sources</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={topAttackSources} layout="vertical" margin={{ top: 5, right: 20, left: 80, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis type="number" stroke="#6b7280" fontSize={12} />
+                      <YAxis type="category" dataKey="ip" stroke="#6b7280" fontSize={12} width={100} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                        labelStyle={{ color: "#374151" }}
+                      />
+                      <Bar dataKey="attacks" name="Attack Count" fill="#ef4444" radius={[0, 4, 4, 0]}>
+                        {topAttackSources.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? "#dc2626" : "#ef4444"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-3 text-xs text-gray-500 text-center">
+                    Most active malicious IPs in last 7 days
                   </div>
                 </div>
-                <h3 className="text-3xl font-bold text-red-600 mt-3">23</h3>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-red-600 font-medium">↑ 8.2%</span>
-                  <span className="text-xs text-gray-400">vs last week</span>
-                </div>
               </div>
-            </div>
-
-            {/* Status Card */}
-            <div className="group relative bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-gray-500 text-sm font-medium">System Status</p>
-                  <div className="p-2 bg-green-50 rounded-xl">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="text-2xl font-bold text-green-600 mt-3">Protected</h3>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-green-600 font-medium">All systems operational</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Traffic Chart */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 transition-all hover:shadow-md">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Traffic Overview</h3>
-                <p className="text-sm text-gray-500 mt-0.5">Weekly packet analysis</p>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
-                <span className="inline-block w-2 h-2 rounded-full bg-indigo-500"></span>
-                Packets (thousands)
-              </div>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={trafficData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#9ca3af"
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="#9ca3af"
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `${value / 1000}k`}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="traffic" 
-                  stroke="#4f46e5" 
-                  strokeWidth={3}
-                  fill="url(#colorTraffic)"
-                  dot={{ fill: '#4f46e5', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: '#4f46e5' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Recent Activity Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 transition-all hover:shadow-md">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                  <p className="text-sm text-gray-500 mt-0.5">Monitor real-time security events</p>
-                </div>
-                <div className="relative">
-                  <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Filter by IP, status, or level..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all w-full sm:w-64"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">IP Address</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Threat Level</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredTableData.length > 0 ? (
-                    filteredTableData.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50 transition-colors duration-150">
-                        <td className="px-6 py-4 font-mono text-sm text-gray-900">{row.ip}</td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={row.status} />
-                        </td>
-                        <td className="px-6 py-4">
-                          <LevelBadge level={row.level} />
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{row.time}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                        No matching records found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Showing {filteredTableData.length} of {initialTableData.length} entries</span>
-                <div className="flex gap-2">
-                  <span className="inline-flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                    Real-time updates
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </Layout>
   );
 };
 
-export default HomePage;
+export default DashboardPage;
