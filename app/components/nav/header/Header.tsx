@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 interface Props {
   toggleSidebar: () => void;
 }
@@ -34,16 +36,19 @@ const Header: React.FC<Props> = ({ toggleSidebar }) => {
         </button>
 
         {/* User avatar + welcome text */}
-        <div className="flex items-center gap-3 cursor-pointer group">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-gray-700 leading-tight">Welcome</p>
-            <p className="text-xs text-gray-500">User</p>
-          </div>
+        <Link href="/profile">
+        
+          <div className="flex items-center gap-3 cursor-pointer group">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-700 leading-tight">Welcome</p>
+              <p className="text-xs text-gray-500">User</p>
+            </div>
 
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-semibold shadow-sm transition-transform group-hover:scale-105">
-            U
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-semibold shadow-sm transition-transform group-hover:scale-105">
+              U
+            </div>
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   );
