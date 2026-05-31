@@ -110,7 +110,7 @@ const Sidebar: React.FC<Props> = ({ open }) => {
         <Link href="/home">
             <div className="w-9 h-9 flex items-center cursor-pointer">
               <Image
-                src="/ddos.png"
+                src="/system-logo.png"
                 alt="Logo"
                 width={36}
                 height={36}

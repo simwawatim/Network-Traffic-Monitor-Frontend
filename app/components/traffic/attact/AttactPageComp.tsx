@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 
 import Layout from "../../Layout";
 import { useRouter } from "next/navigation";
+import DetectionModal from "../../detection/DetectionModal";
+
 
 interface AttackLog {
   uuid: string;
@@ -23,6 +25,7 @@ const AttackPageComp = () => {
   const [protocolFilter, setProtocolFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isDetectionModalOpen, setIsDetectionModalOpen] = useState(false);
   const router = useRouter();
 
   // Mock attack logs data
@@ -87,6 +90,8 @@ const AttackPageComp = () => {
   router.push(`/insight-details/${log.uuid}`);
 };
 
+
+
   const getAttackBadge = (attackType: string, severity: string) => {
     if (attackType === "ddos") {
       return <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">DDoS Attack</span>;
@@ -106,10 +111,31 @@ const AttackPageComp = () => {
   return (
     <Layout>
       <div className="w-full bg-gray-50 min-h-screen">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-5">
-          <h1 className="text-2xl font-bold text-gray-900">Attack Traffic Logs</h1>
-          <p className="text-sm text-gray-600 mt-1">Monitor and respond to active cyber attacks, DDoS, and malicious activities</p>
+        <div className="bg-white border-b border-gray-200 px-6 py-5 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Attack Traffic Logs</h1>
+            <p className="text-sm text-gray-600 mt-1">Monitor and respond to active cyber attacks, DDoS, and malicious activities</p>
+          </div>
+          <button
+            onClick={() => setIsDetectionModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            Start Detection
+          </button>
         </div>
 
         {/* Filters section with spacing above and below */}
@@ -336,6 +362,14 @@ const AttackPageComp = () => {
           )}
         </div>
       </div>
+      <DetectionModal
+        isOpen={isDetectionModalOpen}
+        onClose={() => setIsDetectionModalOpen(false)}
+        onDetectionComplete={(newLogs) => {
+          setLogs((prevLogs) => [...prevLogs, ...(newLogs as unknown as AttackLog[])]);
+          setIsDetectionModalOpen(false);
+        }}
+      />
     </Layout>
   );
 };

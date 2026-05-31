@@ -24,13 +24,12 @@ const RegisterPage: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-[#f6f9fc] to-[#eef2f8] font-sans antialiased">
       {/* Left Column: DDoS Image - new cyber attack visualization */}
-      <div className="md:w-1/2 w-full relative min-h-[280px] md:min-h-screen overflow-hidden">
+      <div className="md:w-1/2 w-full min-h-[280px] md:min-h-screen bg-gray-900 relative">
         <img
-          src="/ddos.jpg"
-          alt="Digital skull representing DDoS cyber attack - network security threat"
-          className="absolute inset-0 w-full h-full object-cover"
+          src="/system-logo.png"
+          alt="DDoS cyber attack visualization"
+          className="absolute inset-0 w-full h-full object-contain"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/10 md:from-black/10 md:to-transparent" />
       </div>
 
       {/* Right Column: Form - centered with wider card */}

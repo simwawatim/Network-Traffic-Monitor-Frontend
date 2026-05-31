@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Layout from "../../Layout";
 import { useRouter } from "next/navigation";
-
+import DetectionModal from "../../detection/DetectionModal"; 
 interface TrafficLog {
   uuid: string;
   timestamp: string;
@@ -11,7 +11,7 @@ interface TrafficLog {
   dstIp: string;
   protocol: string;
   packetSize: number;
-  status: "suspicious" | "ddos";
+  status: "suspicious" | "ddos" | "normal";
 }
 
 const SuspiciousPageComp = () => {
@@ -21,6 +21,7 @@ const SuspiciousPageComp = () => {
   const [protocolFilter, setProtocolFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isDetectionModalOpen, setIsDetectionModalOpen] = useState(false);
 
   const router = useRouter();
   // Mock suspicious + ddos traffic logs
@@ -84,20 +85,49 @@ const SuspiciousPageComp = () => {
   router.push(`/insight-details/${log.uuid}`);
 };
 
+const handleDetectionComplete = (newLogs: TrafficLog[]) => {
+    setLogs((prevLogs) => [...newLogs, ...prevLogs]);
+  };
+
   const getStatusBadge = (status: string) => {
     if (status === "ddos") {
       return <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">DDoS Attack</span>;
     }
     return <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Suspicious</span>;
   };
+  
 
   return (
     <Layout>
       <div className="w-full bg-gray-50 min-h-screen">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-5">
-          <h1 className="text-2xl font-bold text-gray-900">Suspicious Traffic Logs</h1>
-          <p className="text-sm text-gray-600 mt-1">Monitor and investigate suspicious network activity and DDoS attacks</p>
+
+
+        <div className="bg-white border-b border-gray-200 px-6 py-5 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Suspicious Traffic Logs</h1>
+            <p className="text-sm text-gray-600 mt-1">Monitor and investigate suspicious network activity and DDoS attacks</p>
+          </div>
+          <button
+            onClick={() => setIsDetectionModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            Start Detection
+          </button>
         </div>
 
         {/* Filters section with spacing above and below */}
@@ -316,6 +346,11 @@ const SuspiciousPageComp = () => {
           )}
         </div>
       </div>
+      <DetectionModal
+        isOpen={isDetectionModalOpen}
+        onClose={() => setIsDetectionModalOpen(false)}
+        onDetectionComplete={handleDetectionComplete}
+      />
     </Layout>
   );
 };
