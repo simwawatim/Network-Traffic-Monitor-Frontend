@@ -106,31 +106,32 @@ const Sidebar: React.FC<Props> = ({ open }) => {
       }`}
     >
       {/* Brand header - refined green theme */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-100">
-        <Link href="/home">
-            <div className="w-9 h-9 flex items-center cursor-pointer">
-              <Image
-                src="/system-logo.png"
-                alt="Logo"
-                width={36}
-                height={36}
-                className="object-cover rounded-lg"
-              />
+      <Link href="/home">
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-100">
+          
+              <div className="w-9 h-9 flex items-center cursor-pointer">
+                <Image
+                  src="/system-logo.png"
+                  alt="Logo"
+                  width={36}
+                  height={36}
+                  className="object-cover rounded-lg"
+                />
+              </div>
+          
+
+          {open && (
+            <div className="flex flex-col transition-all duration-200">
+              <span className="text-base font-bold tracking-tight text-green-700">
+                DDoS
+              </span>
+              <span className="text-[11px] font-medium text-gray-400 tracking-wide uppercase">
+                Detection System
+              </span>
             </div>
-          </Link>
-
-        {open && (
-          <div className="flex flex-col transition-all duration-200">
-            <span className="text-base font-bold tracking-tight text-green-700">
-              DDoS
-            </span>
-            <span className="text-[11px] font-medium text-gray-400 tracking-wide uppercase">
-              Detection System
-            </span>
-          </div>
-        )}
-      </div>
-
+          )}
+        </div>
+      </Link>
       {/* Navigation links - improved hover and active states */}
       <nav className="flex-1 px-3 py-6 space-y-1.5">
         {navItems.map((item) => {

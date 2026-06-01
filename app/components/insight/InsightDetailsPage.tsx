@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Layout from "../Layout";
+import GoBackComp from "../nav/header/Back"
 
-// ---------- Types ----------
 interface DetailLog {
   uuid: string;
   timestamp: string;
@@ -19,7 +19,6 @@ interface DetailLog {
   reason?: string;
 }
 
-// Expanded mock data
 const MOCK_LOGS: DetailLog[] = [
   { uuid: "550e8400-e29b-41d4-a716-446655440000", timestamp: "2025-02-18 08:23:12", srcIp: "192.168.1.10", dstIp: "10.0.0.5", protocol: "TCP", packetSize: 1460, status: "normal" },
   { uuid: "550e8400-e29b-41d4-a716-446655440001", timestamp: "2025-02-18 08:23:15", srcIp: "192.168.1.22", dstIp: "10.0.0.8", protocol: "UDP", packetSize: 512, status: "normal" },
@@ -35,7 +34,6 @@ const MOCK_LOGS: DetailLog[] = [
   { uuid: "bb0e8400-e29b-41d4-a716-446655446000", timestamp: "2025-02-18 13:45:33", srcIp: "198.51.100.7", dstIp: "10.0.0.99", protocol: "ICMP", packetSize: 84, status: "suspicious" },
 ];
 
-// ---------- Helper ----------
 const getTrafficStatsForSource = (sourceIp: string) => {
   if (!sourceIp) return null;
   const relatedLogs = MOCK_LOGS.filter(log => log.srcIp === sourceIp);
@@ -57,7 +55,6 @@ const getTrafficStatsForSource = (sourceIp: string) => {
   };
 };
 
-// ---------- Tree Node Component ----------
 interface TreeNode {
   id: string;
   name: string;
@@ -82,8 +79,6 @@ const TreeNodeItem = ({
   const isSelected = node.type === "log" && node.logData?.uuid === selectedUuid;
 
   const toggle = () => setIsOpen(!isOpen);
-
-  // Icon for node type
   const getIcon = () => {
     switch (node.type) {
       case "source":
@@ -276,14 +271,7 @@ const InsightDetailsPage = () => {
   if (error || !log) {
     return (
       <Layout>
-        <div className="text-center py-16 px-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
-            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-          </div>
-          <h2 className="text-xl font-semibold text-gray-800">Log not found</h2>
-          <p className="text-gray-500 mt-2">The requested UUID does not exist.</p>
-          <button onClick={() => router.push("/home")} className="mt-6 px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">Back to Dashboard</button>
-        </div>
+        <GoBackComp/>
       </Layout>
     );
   }
@@ -294,12 +282,12 @@ const InsightDetailsPage = () => {
         <div className="w-full px-4 sm:px-6 py-6">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1 text-sm text-gray-600 mb-6">
-            <button onClick={() => router.push("/dashboard")} className="hover:text-emerald-600 transition flex items-center gap-1">
+            <button onClick={() => router.push("/home")} className="hover:text-emerald-600 transition flex items-center gap-1">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
               Dashboard
             </button>
             <span className="text-gray-400">/</span>
-            <button onClick={() => router.push("/insights")} className="hover:text-emerald-600 transition">Insights</button>
+            <button className="hover:text-emerald-600 transition">Insights</button>
             <span className="text-gray-400">/</span>
             <span className="text-gray-800 font-medium truncate max-w-[200px]">{log.uuid.slice(0, 8)}...</span>
           </nav>
