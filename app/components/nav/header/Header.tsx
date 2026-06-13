@@ -38,7 +38,7 @@ const Header: React.FC<Props> = ({ toggleSidebar }) => {
           const relativePath = response.data.profile_picture;
           const fullUrl = relativePath.startsWith("http")
             ? relativePath
-            : `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"}${relativePath}`;
+            : `${process.env.NEXT_PUBLIC_API_BASE_URL}${relativePath}`;
           setProfilePictureUrl(fullUrl);
         } else {
           setProfilePictureUrl(null);
